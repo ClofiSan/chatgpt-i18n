@@ -13,10 +13,11 @@ import { compressJson, copy2Clipboard, prettierJson } from "./utils";
 import ExportFiles from "./exportFiles";
 import { DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { intlLanguages } from "./config";
-import { translate } from "./services";
+import { translate,uploadExcelFile } from "./services";
 import Spinner from "../../components/spinner";
 import { useNotification } from "../../notify";
 import TextField from "../../components/textField";
+import { Button, Form,message,Upload } from 'antd';
 
 self.MonacoEnvironment = {
     getWorker(_, label) {
@@ -138,6 +139,16 @@ const Translate: React.FC = (props) => {
                         />
                     </div>
                 </div>
+            </div>
+            <div className="App">
+                <h4>导入EXCEL</h4>
+                <Form.Item label="文件路径" className="upload-form">
+                    <Upload beforeUpload={uploadExcelFile} onRemove={() => {  }}>
+                        <Button type="link">
+                            选择文件
+                        </Button>
+                    </Upload>
+                </Form.Item>
             </div>
         </div>
     );
