@@ -13,11 +13,13 @@ import { compressJson, copy2Clipboard, prettierJson } from "./utils";
 import ExportFiles from "./exportFiles";
 import { DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { intlLanguages } from "./config";
-import { translate,uploadExcelFile } from "./services";
+import { translate } from "./services";
 import Spinner from "../../components/spinner";
 import { useNotification } from "../../notify";
 import TextField from "../../components/textField";
-import { Button, Form,message,Upload } from 'antd';
+import { Button, Form, message, Upload } from "antd";
+import { RcFile } from "antd/lib/upload";
+import * as XLSX from "xlsx";
 
 self.MonacoEnvironment = {
     getWorker(_, label) {
@@ -34,7 +36,7 @@ self.MonacoEnvironment = {
             return new tsWorker();
         }
         return new editorWorker();
-    },
+    }
 };
 
 loader.config({ monaco });
@@ -58,12 +60,62 @@ const Translate: React.FC = (props) => {
             notify({
                 title: "translate service error",
                 message: `${error}`,
-                type: "error",
-            }, 3000)
+                type: "error"
+            }, 3000);
         } finally {
             setLoading(false);
         }
     }, [originalContent, lang, extraPrompt]);
+
+
+    function uploadExcelFile(file: RcFile, FileList: RcFile[]) {
+        let resData = [{}];// 存储获取到的数据
+        // 通过FileReader对象读取文件
+        const fileReader = new FileReader();
+        fileReader.readAsBinaryString(file);
+        fileReader.onload = async event => {
+            try {
+                const result = event.target?.result;
+                // // 以二进制流方式读取得到整份excel表格对象
+                const workbook = XLSX.read(result, { type: "binary" });
+                // // 遍历每张工作表进行读取（这里默认只读取第一张表）
+                for (const sheet in workbook.Sheets) {
+                    if (workbook.Sheets.hasOwnProperty(sheet)) {
+                        // 利用 sheet_to_json 方法将 excel 转成 json 数据
+                        resData = XLSX.utils.sheet_to_json(workbook.Sheets[sheet]);
+                        break; // 如果只取第一张表，就取消注释这行
+                    }
+                }
+                //将读取到的数据传入后台
+                console.log(resData);
+                let jsonData = JSON.stringify(resData);
+                console.log(jsonData);
+                // console.log(process.env.OPENAI_API_KEY);
+                setOriginalContent(jsonData)
+                setLoading(true);
+                try {
+                    const compressedContent = compressJson(jsonData);
+                    const data = await translate(compressedContent, lang, extraPrompt);
+                    setTransContent(prettierJson(data));
+                } catch (error) {
+                    notify({
+                        title: "translate service error",
+                        message: `${error}`,
+                        type: "error"
+                    }, 3000);
+                } finally {
+                    setLoading(false);
+                }
+
+            } catch (e) {
+                // 这里可以抛出文件类型错误不正确的相关提示
+                console.log("文件类型不正确", e);
+            }
+
+        };
+        return false;
+    }
+
 
     return (
         <div className="text-white">
@@ -120,10 +172,10 @@ const Translate: React.FC = (props) => {
                                 onClick={() => {
                                     copy2Clipboard(transContent);
                                     notify({
-                                        type: 'success',
-                                        title: 'copied!',
-                                        message: 'copy to clipboard',
-                                    }, 1000)
+                                        type: "success",
+                                        title: "copied!",
+                                        message: "copy to clipboard"
+                                    }, 1000);
                                 }}
                                 className="float-right w-5 text-white cursor-pointer hover:scale-110"
                             />
@@ -141,9 +193,9 @@ const Translate: React.FC = (props) => {
                 </div>
             </div>
             <div className="App">
-                <h4>导入EXCEL</h4>
                 <Form.Item label="文件路径" className="upload-form">
-                    <Upload beforeUpload={uploadExcelFile} onRemove={() => {  }}>
+                    <Upload beforeUpload={uploadExcelFile} onRemove={() => {
+                    }}>
                         <Button type="link">
                             选择文件
                         </Button>
